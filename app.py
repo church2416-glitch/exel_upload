@@ -84,6 +84,12 @@ def fit_image_to_merged_cell(ws, img_data, cell_addr):
 
         input_img = PILImage.open(io.BytesIO(img_data))
         
+        # ✅ 리사이즈 로직 복원
+        if input_img.width > 1600:
+            ratio = 1600 / float(input_img.width)
+            hsize = int(float(input_img.height) * ratio)
+            input_img = input_img.resize((1600, hsize), PILImage.Resampling.LANCZOS)
+        
         img_byte_arr = io.BytesIO()
         input_img.convert("RGB").save(img_byte_arr, format='JPEG', quality=85)
         img_byte_arr.seek(0)
@@ -102,8 +108,9 @@ def fit_image_to_merged_cell(ws, img_data, cell_addr):
         else:
             img.anchor = cell_addr.upper()
         ws.add_image(img)
+        
     except Exception as e:
-        st.error(f"이미지 삽입 실패 ({cell_addr}): {e}")
+        st.error(f"❌ 이미지 삽입 실패 ({cell_addr}): {type(e).__name__}: {e}")
 
 # --- 4. 메인 UI 및 앱 로직 ---
 st.set_page_config(page_title="이미지 업로드 보고서 시스템 (Supabase)", layout="wide")
@@ -228,16 +235,16 @@ with main_col2:
                 try:
                     wb = openpyxl.load_workbook(io.BytesIO(final_excel_data))
 
-                    for i, img_file in enumerate(uploaded_imgs):
-                        if i >= len(final_cells): 
+                    img_bytes_list = [img_file.read() for img_file in uploaded_imgs]
+
+                    for i, img_bytes in enumerate(img_bytes_list):
+                        if i >= len(final_cells):
                             break
-                        
-                        img_file.seek(0)
-                        
-                        img_bytes = img_file.read()
-                        
+    
+                        st.write(f"디버그 {i+1}번: {len(img_bytes)} bytes")  # 확인 후 나중에 삭제
+    
                         if not img_bytes:
-                            st.error(f"이미지 {i} 비어있음!")
+                            st.warning(f"⚠️ {i+1}번째 이미지 비어있음")
                             continue
                             
                         p_idx_str, cell_addr = final_cells[i].split(":")
