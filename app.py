@@ -72,6 +72,15 @@ def upload_template_to_supabase(file_name, file_data):
         st.error(f"양식 업로드 실패: {e}")
         return False
 
+def download_template_from_supabase(file_name):
+    """Supabase Storage에서 양식 파일을 다운로드합니다"""
+    try:
+        # storage.from_("버킷이름").download("파일명")
+        return supabase.storage.from_(BUCKET_NAME).download(file_name)
+    except Exception as e:
+        # 파일이 없거나 연결 오류 시 None 반환
+        return None
+    
 # --- 3. 이미지 처리 로직 (기존과 동일) ---
 def fit_image_to_merged_cell(ws, img_data, cell_addr):
     try:
