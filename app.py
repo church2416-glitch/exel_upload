@@ -48,29 +48,21 @@ def save_presets_to_supabase(presets):
         return False
 
 def upload_template_to_supabase(file_name, file_data):
-    """
-    파일명 에러를 방지하기 위해 실제 저장 이름은 고유 ID를 사용합니다.
-    """
+    """파일명을 안전한 고유 ID로 바꿔서 업로드합니다."""
     try:
-        # 확장자 추출 (.xlsx 등)
         extension = os.path.splitext(file_name)[1]
+        # 한글/공백 에러를 방지하기 위해 파일명을 고유값으로 변경
+        safe_db_name = f"template_{uuid.uuid4().hex[:8]}{extension}" 
         
-        # 실제 Storage에 저장될 이름 생성 (예: template_a1b2c3d4.xlsx)
-        # 이렇게 하면 한글/특수문자 에러가 100% 해결됩니다.
-        safe_db_name = f"template_{uuid.uuid4().hex[:8]}{extension}"
-        
-        # Supabase Storage에 업로드
         supabase.storage.from_(BUCKET_NAME).upload(
-            path=safe_db_name,
+            path=safe_db_name, 
             file=file_data,
             file_options={"cache-control": "3600", "upsert": "true"}
         )
-        
-        # 성공 시 '실제 저장된 이름'을 반환합니다.
-        return safe_db_name
+        return safe_db_name # 변경된 안전한 이름을 반환
     except Exception as e:
-        st.error(f"양식 업로드 실패: {e}")
-        return False
+        st.error(f"업로드 실패: {e}")
+        return None
 
 def download_template_from_supabase(file_name):
     """Supabase Storage에서 양식 파일을 다운로드합니다"""
@@ -189,9 +181,9 @@ with main_col1:
             target_t_name = active_temp_name
             if uploaded_excel:
                 excel_data = uploaded_excel.getvalue()
-                result_name = upload_template_to_supabase(uploaded_excel.name, excel_data)
-                if result_name:
-                   target_t_name = result_name # 정제된 파일명으로 프리셋 저장
+                safe_name = upload_template_to_supabase(uploaded_excel.name, excel_data)
+                if safe_name:
+                   target_t_name = safe_name # 정제된 파일명으로 프리셋 저장
                    st.sidebar.success(f"📦 양식 업로드 성공!")
                 else:
                     st.stop()   
