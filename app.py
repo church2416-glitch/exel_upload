@@ -46,14 +46,29 @@ def save_presets_to_drive(presets):
         fh = io.BytesIO(content.encode('utf-8'))
         media = MediaIoBaseUpload(fh, mimetype='application/json')
         
+        # 1. 파일 검색 시에도 권한 허용 옵션 
         query = f"name = 'presets.json' and '{FOLDER_ID}' in parents and trashed = false"
-        results = service.files().list(q=query).execute().get('files', [])
+        results = service.files().list(
+            q=query, 
+            supportsAllDrives=True, 
+            includeItemsFromAllDrives=True 
+        ).execute().get('files', [])
         
         if results:
-            service.files().update(fileId=results[0]['id'], media_body=media).execute()
+            # 2. 업데이트 시 필수 옵션
+            service.files().update(
+                fileId=results[0]['id'], 
+                media_body=media,
+                supportsAllDrives=True
+            ).execute()
         else:
+            # 3. 생성 시 필수 옵션 
             file_metadata = {'name': 'presets.json', 'parents': [FOLDER_ID]}
-            service.files().create(body=file_metadata, media_body=media).execute()
+            service.files().create(
+                body=file_metadata, 
+                media_body=media,
+                supportsAllDrives=True 
+            ).execute()
         return True
     except Exception as e:
         st.error(f"프리셋 저장 실패: {e}")
@@ -65,15 +80,26 @@ def upload_template_to_drive(file_name, file_data):
         fh = io.BytesIO(file_data)
         media = MediaIoBaseUpload(fh, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         
-        # 기존 동일 이름 양식 있는지 확인
         query = f"name = '{file_name}' and '{FOLDER_ID}' in parents and trashed = false"
-        results = service.files().list(q=query).execute().get('files', [])
+        results = service.files().list(
+            q=query, 
+            supportsAllDrives=True, 
+            includeItemsFromAllDrives=True
+        ).execute().get('files', [])
         
         if results:
-            service.files().update(fileId=results[0]['id'], media_body=media).execute()
+            service.files().update(
+                fileId=results[0]['id'], 
+                media_body=media,
+                supportsAllDrives=True
+            ).execute()
         else:
             file_metadata = {'name': file_name, 'parents': [FOLDER_ID]}
-            service.files().create(body=file_metadata, media_body=media).execute()
+            service.files().create(
+                body=file_metadata, 
+                media_body=media,
+                supportsAllDrives=True
+            ).execute()
         return True
     except Exception as e:
         st.error(f"양식 파일 업로드 실패: {e}")
