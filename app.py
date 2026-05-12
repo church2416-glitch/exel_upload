@@ -222,21 +222,44 @@ with main_col2:
                 if ":" in p: final_cells.append(p)
 
         if final_excel_data and final_cells and uploaded_imgs:
-            with st.spinner("Supabase에서 데이터를 가져와 생성 중..."):
+            with st.spinner("엑셀 보고서를 생성 중입니다..."):
                 try:
                     wb = openpyxl.load_workbook(io.BytesIO(final_excel_data))
+
                     for i, img_file in enumerate(uploaded_imgs):
-                        if i >= len(final_cells): break
+                        if i >= len(final_cells): 
+                            break
+                        
+                        img_file.seek(0)
+                        
+                        img_bytes = img_file.getvalue()
+                        
+                        if not img_bytes:
+                            continue
+                            
                         p_idx_str, cell_addr = final_cells[i].split(":")
-                        ws = wb[wb.sheetnames[int(p_idx_str)-1]]
-                        img_bytes = img_file.getvalue()  # 파일 객체에서 직접 데이터를 추출
+                        sheet_idx = int(p_idx_str) - 1
+                        
+                        if sheet_idx < 0 or sheet_idx >= len(wb.sheetnames):
+                            st.error(f"❌ {p_idx_str}번 시트를 찾을 수 없습니다.")
+                            continue
+                            
+                        ws = wb[wb.sheetnames[sheet_idx]]
+                
                         fit_image_to_merged_cell(ws, img_bytes, cell_addr)
                     
                     out = io.BytesIO()
                     wb.save(out)
                     out.seek(0)
+                    
                     st.success(f"✅ 생성 완료!")
-                    st.download_button("결과 엑셀 다운로드", out, f"{custom_filename}.xlsx", use_container_width=True)
+                    st.download_button(
+                        label="결과 엑셀 다운로드",
+                        data=out,
+                        file_name=f"{custom_filename}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
                 except Exception as e:
                     st.error(f"오류 발생: {e}")
 
