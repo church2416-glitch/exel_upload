@@ -5,7 +5,7 @@ from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
 import io, json, re
 from PIL import Image as PILImage
 from supabase import create_client, Client
-
+import re
 # --- 1. Supabase 연결 설정 ---
 @st.cache_resource
 def get_supabase() -> Client:
@@ -45,18 +45,20 @@ def save_presets_to_supabase(presets):
         return False
 
 def upload_template_to_supabase(file_name, file_data):
-    """엑셀 양식 파일을 Supabase Storage에 업로드합니다"""
-    try:
+    """엑셀 양식 파일을 Supabase Storage에 업로드합니다 (파일명 정제 포함)"""
+    try:   
+        safe_file_name = re.sub(r'[^\w\s\.]', '', file_name) 
+        safe_file_name = safe_file_name.replace(' ', '_')    
+        
         supabase.storage.from_(BUCKET_NAME).upload(
-            path=file_name,
+            path=safe_file_name,
             file=file_data,
             file_options={"cache-control": "3600", "upsert": "true"}
         )
-        return True
+        return safe_file_name # 나중에 프리셋에 저장하기 위해 정제된 이름을 반환
     except Exception as e:
         st.error(f"양식 업로드 실패: {e}")
         return False
-
 def download_template_from_supabase(file_name):
     """Supabase Storage에서 양식 파일을 다운로드합니다"""
     try:
@@ -171,10 +173,13 @@ with main_col1:
         if new_p_name and custom_filename and cell_input:
             target_t_name = active_temp_name
             if uploaded_excel:
-                target_t_name = uploaded_excel.name
-                if upload_template_to_supabase(target_t_name, uploaded_excel.getvalue()):
-                    st.sidebar.success(f"📦 양식 업로드 성공!")
-                else: st.stop()
+                excel_data = uploaded_excel.getvalue()
+                result_name = upload_template_to_supabase(uploaded_excel.name, excel_data)
+                if result_name:
+                   target_t_name = result_name # 정제된 파일명으로 프리셋 저장
+                   st.sidebar.success(f"📦 양식 업로드 성공!")
+                else:
+                    st.stop()   
             
             st.session_state.presets[new_p_name] = {
                 "filename": custom_filename,
