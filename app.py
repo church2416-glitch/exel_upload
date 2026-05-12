@@ -5,8 +5,8 @@ from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
 import io, json, re, uuid, os
 from PIL import Image as PILImage
 from supabase import create_client, Client 
+import streamlit as st
 import time
-from streamlit.web.server.websocket_headers import _get_query_params_from_headers
 
 # --- 1. Supabase 설정 ---
 @st.cache_resource
