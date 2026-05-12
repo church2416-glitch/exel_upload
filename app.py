@@ -21,30 +21,36 @@ BUCKET_NAME = "templates" # Supabase Storage 버킷 이름
 
 # --- 2. Supabase 프리셋/양식 ---
 
-def load_presets_from_supabase():
-    """DB에서 프리셋 정보를 가져옵니다 (JSON 파일 대신 DB 테이블 권장하나 기존 로직 유지 위해 파일로 처리)"""
+def load_presets_from_db():
     try:
-        # Storage에서 presets.json 다운로드
-        res = supabase.storage.from_(BUCKET_NAME).download("presets.json")
-        return json.loads(res.decode('utf-8'))
-    except Exception:
+        # excel_presets 테이블의 모든 데이터 가져오기
+        response = supabase.table("excel_presets").select("*").execute()
+        
+        # UI { '프리셋명': {데이터} } 형태로 변환
+        presets = {}
+        for row in response.data:
+            presets[row['preset_name']] = {
+                "filename": row['filename'],
+                "cells": row['cell_positions'],
+                "template_name": row['template_path']
+            }
+        return presets
+    except Exception as e:
+        st.error(f"DB 불러오기 실패: {e}")
         return {}
 
-def save_presets_to_supabase(presets):
-    """DB 또는 Storage에 프리셋 정보를 저장합니다"""
+def save_preset_to_db(name, filename, cells, t_name):
     try:
-        content = json.dumps(presets, indent=4, ensure_ascii=False)
-        content_bytes = content.encode('utf-8')
-        
-        # Supabase Storage에 덮어쓰기 (upsert=True)
-        supabase.storage.from_(BUCKET_NAME).upload(
-            path="presets.json",
-            file=content_bytes,
-            file_options={"cache-control": "3600", "upsert": "true"}
-        )
+        data = {
+            "preset_name": name,
+            "filename": filename,
+            "cell_positions": cells,
+            "template_path": t_name
+        }
+        supabase.table("excel_presets").upsert(data, on_conflict="preset_name").execute()
         return True
     except Exception as e:
-        st.error(f"프리셋 저장 실패: {e}")
+        st.error(f"DB 저장 실패: {e}")
         return False
 
 def upload_template_to_supabase(file_name, file_data):
@@ -72,6 +78,28 @@ def download_template_from_supabase(file_name):
     except Exception as e:
         return None
     
+    # 사이드바에 비밀번호 입력창을 만들어 관리자 인증 구현 (간단한 예시)
+admin_mode = st.sidebar.checkbox("관리자 모드 접속")
+
+if admin_mode:
+    password = st.sidebar.text_input("Admin Password", type="password")
+    if password == "@tlavmf123": # 실제 비밀번호로 변경
+        st.subheader("관리자 대시보드")
+        
+        # 현재 DB 상태를 표로 보여줌
+        res = supabase.table("excel_presets").select("*").execute()
+        if res.data:
+            st.table(res.data) # 데이터 시각화
+            
+            # 특정 데이터 삭제 기능
+            target = st.selectbox("삭제할 프리셋 선택", [r['preset_name'] for r in res.data])
+            if st.button("DB에서 영구 삭제"):
+                supabase.table("excel_presets").delete().eq("preset_name", target).execute()
+                st.success(f"{target} 삭제 완료!")
+                st.rerun()
+    else:
+        st.sidebar.warning("비밀번호가 틀렸습니다.")
+
 # --- 3. 이미지 처리 로직  ---
 def fit_image_to_merged_cell(ws, img_data, cell_addr):
     try:
@@ -115,7 +143,7 @@ def fit_image_to_merged_cell(ws, img_data, cell_addr):
         st.error(f"❌ 이미지 삽입 실패 ({cell_addr}): {type(e).__name__}: {e}")
 
 # --- 4. 메인 UI 및 앱 ---
-st.set_page_config(page_title="EXEL UPLOAD (Supabase)", layout="wide")
+st.set_page_config(page_title="EXEL UPLOAD (by.Simroot)", layout="wide")
 st.title("EXEL UPLOAD")
 
 if 'presets' not in st.session_state:
