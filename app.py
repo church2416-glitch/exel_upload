@@ -170,7 +170,7 @@ if selected_preset != "직접 입력" and selected_preset in st.session_state.pr
             st.sidebar.success(f"✅ 양식 연결됨: {t_name}")
 
 if selected_preset != "직접 입력":
-    if st.sidebar.button("현재 프리셋 삭제", use_container_width=True):
+    if st.sidebar.button("현재 프리셋 삭제", width="stretch"):
         if delete_preset_from_db(selected_preset):
             st.sidebar.success(f"'{selected_preset}' 삭제 완료!")
             st.session_state.presets = load_presets_from_db()
@@ -185,23 +185,29 @@ with main_col1:
     
     st.write("**위치 설정**")
     w_col1, w_col2, w_col3 = st.columns([1, 1, 1.5])
-    with w_col1: s_num = st.number_input("시트", min_value=1, step=1)
+    with w_col1: 
+        s_num = st.number_input("시트", min_value=1, step=1)
     with w_col2: 
         all_cols = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
-        c_let = st.selectbox("열", all_cols, index=all_cols.index("B"))
-    with w_col3: r_num = st.number_input("행 번호", min_value=1, step=1)
+        default_idx = all_cols.index("B") if "B" in all_cols else 0
+        c_let = st.selectbox("열", all_cols, index=default_idx)
+    with w_col3: 
+        r_num = st.number_input("행 번호", min_value=1, step=1)
     
     cur_addr = f"{s_num}:{c_let}{r_num}"
     
     b_col1, b_col2, b_col3 = st.columns(3)
     with b_col1:
-        if st.button("위치 추가", use_container_width=True):
-            if st.session_state.temp_cells: st.session_state.temp_cells += f", {cur_addr}"
-            else: st.session_state.temp_cells = cur_addr
+        if st.button("위치 추가", width="stretch"):
+            if st.session_state.temp_cells: 
+                st.session_state.temp_cells += f", {cur_addr}"
+            else: 
+                st.session_state.temp_cells = cur_addr
     with b_col2:
-        if st.button("+16행 추가"): st.session_state.temp_cells += "+16"
+        if st.button("+16행 추가", width="stretch"): 
+            st.session_state.temp_cells += "+16"
     with b_col3:
-        if st.button("전체 초기화", use_container_width=True):
+        if st.button("전체 초기화", width="stretch"):
             st.session_state.temp_cells = ""
             st.rerun()
 
@@ -276,27 +282,25 @@ admin_key = st.sidebar.checkbox("관리자 모드 접속")
 
 if admin_key:
     password = st.sidebar.text_input("Admin Password", type="password")
-    if password == "@tlavmf123": # 설정하신 비밀번호
-        st.header("Administor DB")
+    if password == "@tlavmf123":
+        st.header(" Administrator DB ")
         
         # 탭을 사용하여 프리셋 관리와 이용 기록 분리
         tab_preset, tab_log = st.tabs(["프리셋 관리", "이용 기록 조회"])
         
-        # --- Tab 1: 프리셋 관리 ---
+        # --- 프리셋 관리 ---
         with tab_preset:
             try:
                 res = supabase.table("excel_presets").select("*").execute()
                 if res.data:
                     st.subheader("DB 저장 프리셋 목록")
-                    st.dataframe(res.data, use_container_width=True)
-                    
-                    # 삭제 기능
+                    st.dataframe(res.data, width="stretch")
                     st.divider()
                     col_del1, col_del2 = st.columns([3, 1])
                     with col_del1:
                         target_id = st.selectbox("삭제할 프리셋 ID 선택", [r['id'] for r in res.data], key="del_preset_sb")
                     with col_del2:
-                        if st.button("행 삭제", type="secondary", use_container_width=True):
+                        if st.button("행 삭제", type="secondary", width="stretch"):
                             supabase.table("excel_presets").delete().eq("id", target_id).execute()
                             st.success("삭제 완료!")
                             st.rerun()
@@ -308,18 +312,22 @@ if admin_key:
         # --- 이용 기록 조회 ---
         with tab_log:
             try:
+                # 최신순 정렬 (desc=True)
                 log_res = supabase.table("user_logs").select("*").order("created_at", desc=True).limit(50).execute()
+                
                 if log_res.data:
                     import pandas as pd
                     df = pd.DataFrame(log_res.data)
-                    # 날짜 형식 변환 (예: 2026-05-12 18:55)
-                    df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime('%Y-%m-%d %H:%M')
-                    st.dataframe(df, use_container_width=True)
-                    st.subheader("최근 보고서 생성 로그 (최신 50건)")
-                    st.table(log_res.data)
                     
-                    if st.button("로그 기록 전체 삭제 (주의)", type="primary"):
-                        # 모든 로그 삭제 (필요할 때만 사용)
+                    if 'created_at' in df.columns:
+                        df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    st.subheader("최근 상세 이용 기록 (최신 50건)")
+                    st.dataframe(df, width="stretch")
+                    
+                    st.divider()
+                    if st.button("로그 기록 전체 삭제", type="primary", width="stretch"):
+                        # 모든 로그 삭제
                         supabase.table("user_logs").delete().neq("id", 0).execute()
                         st.success("로그 초기화 완료")
                         st.rerun()
@@ -327,7 +335,7 @@ if admin_key:
                     st.info("아직 생성된 이용 기록이 없습니다.")
             except Exception as e:
                 st.error(f"로그 로드 실패: {e}")
-                st.info("💡 SQL Editor에서 user_logs 테이블을 생성했는지 확인하세요.")
+                st.info("💡 SQL Editor에서 user_logs 테이블과 컬럼(processing_time, user_ip 등)이 생성되었는지 확인하세요.")
 
     elif password:
         st.sidebar.warning("비밀번호가 틀렸습니다.")
