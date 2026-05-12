@@ -153,7 +153,7 @@ if 'temp_cells' not in st.session_state:
     st.session_state.temp_cells = ""
 
 # 프리셋 관리 사이드바
-st.sidebar.header("프리셋")
+st.sidebar.header("프리셋 설정")
 preset_list = list(st.session_state.presets.keys())
 selected_preset = st.sidebar.selectbox("설정 불러오기", ["직접 입력"] + preset_list)
 
@@ -280,6 +280,8 @@ with main_col2:
 
 
 # --- 관리자 전용  ---
+for _ in range(10): 
+    st.sidebar.write("")
 st.sidebar.markdown("---")
 admin_key = st.sidebar.checkbox("관리자 모드 접속")
 
