@@ -9,7 +9,7 @@ import re
 import uuid
 import os
 
-# --- 1. Supabase 연결 설정 ---
+# --- Supabase 설정 ---
 @st.cache_resource
 def get_supabase() -> Client:
     url = st.secrets["supabase"]["url"]
@@ -17,9 +17,9 @@ def get_supabase() -> Client:
     return create_client(url, key)
 
 supabase = get_supabase()
-BUCKET_NAME = "templates" # Supabase Storage에 만든 버킷 이름
+BUCKET_NAME = "templates" # Supabase Storage 버킷 이름
 
-# --- 2. Supabase 프리셋/양식 처리 로직 ---
+# --- 2. Supabase 프리셋/양식 ---
 
 def load_presets_from_supabase():
     """DB에서 프리셋 정보를 가져옵니다 (JSON 파일 대신 DB 테이블 권장하나 기존 로직 유지 위해 파일로 처리)"""
@@ -70,10 +70,9 @@ def download_template_from_supabase(file_name):
         # storage.from_("버킷이름").download("파일명")
         return supabase.storage.from_(BUCKET_NAME).download(file_name)
     except Exception as e:
-        # 파일이 없거나 연결 오류 시 None 반환
         return None
     
-# --- 3. 이미지 처리 로직 (기존과 동일) ---
+# --- 3. 이미지 처리 로직  ---
 def fit_image_to_merged_cell(ws, img_data, cell_addr):
     try:
         try:
@@ -84,7 +83,6 @@ def fit_image_to_merged_cell(ws, img_data, cell_addr):
 
         input_img = PILImage.open(io.BytesIO(img_data))
         
-        # ✅ 리사이즈 로직 복원
         if input_img.width > 1600:
             ratio = 1600 / float(input_img.width)
             hsize = int(float(input_img.height) * ratio)
@@ -108,10 +106,10 @@ def fit_image_to_merged_cell(ws, img_data, cell_addr):
            # st.write(f"✅ 병합셀 찾음: {target_range}") 
         else:
             img.anchor = cell_addr.upper()
-            #st.write(f"⚠️ 병합셀 못찾음, 단순앵커: {cell_addr}")  # 추가
+            #st.write(f"⚠️ 병합셀 못찾음, 단순앵커: {cell_addr}") 
         
         ws.add_image(img)
-       # st.write(f"✅ 이미지 추가완료: {cell_addr}")  # 추가
+       # st.write(f"✅ 이미지 추가완료: {cell_addr}")
         
     except Exception as e:
         st.error(f"❌ 이미지 삽입 실패 ({cell_addr}): {type(e).__name__}: {e}")
@@ -126,7 +124,7 @@ if 'temp_cells' not in st.session_state:
     st.session_state.temp_cells = ""
 
 # 프리셋 관리 사이드바
-st.sidebar.header("💾 Supabase 프리셋 매니저")
+st.sidebar.header("프리셋")
 preset_list = list(st.session_state.presets.keys())
 selected_preset = st.sidebar.selectbox("설정 불러오기", ["직접 입력"] + preset_list)
 
@@ -156,10 +154,10 @@ if selected_preset != "직접 입력" and selected_preset in st.session_state.pr
 main_col1, main_col2 = st.columns([1, 1])
 
 with main_col1:
-    st.subheader("1. 위치 및 설정")
+    st.subheader("설정")
     custom_filename = st.text_input("결과 파일명", value=d_name)
     
-    st.write("**위치 생성**")
+    st.write("**위치 설정**")
     w_col1, w_col2, w_col3 = st.columns([1, 1, 1.5])
     with w_col1:
         s_num = st.number_input("시트", min_value=1, step=1)
@@ -184,12 +182,12 @@ with main_col1:
             st.session_state.temp_cells = ""
             st.rerun()
 
-    cell_input = st.text_area("최종 위치 리스트", value=st.session_state.temp_cells, height=100)
+    cell_input = st.text_area("최종 위치", value=st.session_state.temp_cells, height=100)
     st.session_state.temp_cells = cell_input
-    uploaded_excel = st.file_uploader("새 엑셀 양식 업로드", type=['xlsx'])
+    uploaded_excel = st.file_uploader("엑셀 양식 업로드", type=['xlsx'])
 
     new_p_name = st.sidebar.text_input("신규 프리셋 이름")
-    if st.sidebar.button("Supabase에 저장", use_container_width=True):
+    if st.sidebar.button("저장", use_container_width=True):
         if new_p_name and custom_filename and cell_input:
             target_t_name = active_temp_name
             if uploaded_excel:
@@ -207,14 +205,14 @@ with main_col1:
                 "template_name": target_t_name
             }
             if save_presets_to_supabase(st.session_state.presets):
-                st.sidebar.success(f"💾 '{new_p_name}' 저장 완료!")
+                st.sidebar.success(f"'{new_p_name}' 저장 완료!")
                 st.rerun()
 
 with main_col2:
-    st.subheader("2. 사진 업로드 및 생성")
+    st.subheader("사진 업로드")
     uploaded_imgs = st.file_uploader("작업 사진 선택", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
     
-    if st.button("엑셀 보고서 즉시 생성", use_container_width=True, type="primary"):
+    if st.button("생성", use_container_width=True, type="primary"):
         final_excel_data = uploaded_excel.getvalue() if uploaded_excel else active_temp_data
         
         # 위치 해석 로직
@@ -245,17 +243,17 @@ with main_col2:
                         if i >= len(final_cells):
                             break
     
-                        #st.write(f"디버그 {i+1}번: {len(img_bytes)} bytes")  # 확인 후 나중에 삭제
+                        #st.write(f"디버그 {i+1}번: {len(img_bytes)} bytes") 
     
                         if not img_bytes:
-                            st.warning(f"⚠️ {i+1}번째 이미지 비어있음")
+                            st.warning(f"{i+1}번째 이미지 비어있음")
                             continue
                             
                         p_idx_str, cell_addr = final_cells[i].split(":")
                         sheet_idx = int(p_idx_str) - 1
                         
                         if sheet_idx < 0 or sheet_idx >= len(wb.sheetnames):
-                            st.error(f"❌ {p_idx_str}번 시트를 찾을 수 없습니다.")
+                            st.error(f"❌{p_idx_str}번 시트를 찾을 수 없습니다.")
                             continue
                             
                         ws = wb[wb.sheetnames[sheet_idx]]
