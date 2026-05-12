@@ -288,6 +288,11 @@ if admin_key:
             try:
                 log_res = supabase.table("user_logs").select("*").order("created_at", desc=True).limit(50).execute()
                 if log_res.data:
+                    import pandas as pd
+                    df = pd.DataFrame(log_res.data)
+                    # 날짜 형식 변환 (예: 2026-05-12 18:55)
+                    df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime('%Y-%m-%d %H:%M')
+                    st.dataframe(df, use_container_width=True)
                     st.subheader("최근 보고서 생성 로그 (최신 50건)")
                     st.table(log_res.data)
                     
