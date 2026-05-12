@@ -6,6 +6,8 @@ import io, json, re
 from PIL import Image as PILImage
 from supabase import create_client, Client
 import re
+import uuid
+
 # --- 1. Supabase 연결 설정 ---
 @st.cache_resource
 def get_supabase() -> Client:
@@ -45,26 +47,29 @@ def save_presets_to_supabase(presets):
         return False
 
 def upload_template_to_supabase(file_name, file_data):
-    """엑셀 양식 파일을 Supabase Storage에 업로드합니다 (파일명 정제 포함)"""
-    try:   
-        safe_file_name = re.sub(r'[^\w\s\.]', '', file_name) 
-        safe_file_name = safe_file_name.replace(' ', '_')    
+    """
+    파일명 에러를 방지하기 위해 실제 저장 이름은 고유 ID를 사용합니다.
+    """
+    try:
+        # 확장자 추출 (.xlsx 등)
+        extension = os.path.splitext(file_name)[1]
         
+        # 실제 Storage에 저장될 이름 생성 (예: template_a1b2c3d4.xlsx)
+        # 이렇게 하면 한글/특수문자 에러가 100% 해결됩니다.
+        safe_db_name = f"template_{uuid.uuid4().hex[:8]}{extension}"
+        
+        # Supabase Storage에 업로드
         supabase.storage.from_(BUCKET_NAME).upload(
-            path=safe_file_name,
+            path=safe_db_name,
             file=file_data,
             file_options={"cache-control": "3600", "upsert": "true"}
         )
-        return safe_file_name # 나중에 프리셋에 저장하기 위해 정제된 이름을 반환
+        
+        # 성공 시 '실제 저장된 이름'을 반환합니다.
+        return safe_db_name
     except Exception as e:
         st.error(f"양식 업로드 실패: {e}")
         return False
-def download_template_from_supabase(file_name):
-    """Supabase Storage에서 양식 파일을 다운로드합니다"""
-    try:
-        return supabase.storage.from_(BUCKET_NAME).download(file_name)
-    except Exception:
-        return None
 
 # --- 3. 이미지 처리 로직 (기존과 동일) ---
 def fit_image_to_merged_cell(ws, img_data, cell_addr):
