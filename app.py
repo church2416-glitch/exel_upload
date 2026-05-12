@@ -20,31 +20,33 @@ BUCKET_NAME = "templates"
 
 # ---  Supabase DB 연동  ---
 def save_log_to_db(action, filename, p_time=0):
+    """상세 정보를 포함하여 로그를 저장합니다."""
     try:
-        # 접속 환경 정보 가져오기
-        from streamlit import runtime
-        ctx = runtime.get_instance().get_client_ctx(runtime.scriptrunner.get_script_run_ctx().session_id)
+        # 1. 접속 환경 정보 가져오기
+        user_agent = st.context.headers.get("User-Agent", "Unknown Agent")
         
-        # 기본값 설정
-        ip = "Unknown"
-        user_agent = "Unknown"
-        
-        if ctx:
-            # 대리 서버(Proxy) 환경을 고려한 IP 및 에이전트 추출
-            headers = ctx.query_string  
-            user_agent = st.context.headers.get("User-Agent", "Unknown")
-            ip = st.context.headers.get("X-Forwarded-For", "Unknown")
+        # 2. IP 주소 가져오기 (배포 환경에 따라 다름)
+        ip = st.context.headers.get("X-Forwarded-For")
+        if not ip:
+            ip = st.context.headers.get("Remote-Addr", "Unknown IP")
+        else:
+            ip = ip.split(",")[0] # 실제 사용자 IP만 추출
 
+        # 3. 데이터 구성 (컬럼명이 DB와 정확히 일치해야 함)
         log_data = {
             "action_type": action,
             "target_filename": filename,
-            "processing_time": round(p_time, 2),
+            "processing_time": round(p_time, 2), # 소수점 2자리 초
             "user_agent": user_agent,
-            "user_ip": ip.split(',')[0] # 여러 IP가 찍힐 경우 첫 번째 것만
+            "user_ip": ip
         }
+        
+        # 4. Supabase 전송
         supabase.table("user_logs").insert(log_data).execute()
+        
     except Exception as e:
-        print(f"로그 상세 저장 실패: {e}")
+        # 오류 발생 시 사용자 화면이 아닌 콘솔에만 기록 (사용자 방해 방지)
+        print(f"Log Error: {e}")
 
 def load_presets_from_db():
     """DB 테이블 'excel_presets'에서 프리셋 로드"""
@@ -262,6 +264,7 @@ with main_col2:
                         if not img_bytes: continue
                         p_idx_str, cell_addr = final_cells[i].split(":")
                         ws = wb[wb.sheetnames[int(p_idx_str) - 1]]
+                        end_time = time.time()
                         fit_image_to_merged_cell(ws, img_bytes, cell_addr)
                     
                     out = io.BytesIO()
@@ -271,7 +274,7 @@ with main_col2:
                     end_time = time.time() #종료시간
                     duration = end_time - start_time
                     st.success("✅ 생성 완료!")
-                    save_log_to_db("보고서 생성", f"{custom_filename}.xlsx", p_time=duration)
+                    save_log_to_db("보고서 생성", f"{custom_filename}.xlsx", p_time=end_time - start_time)
                     st.download_button("결과 엑셀 다운로드", data=out, file_name=f"{custom_filename}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
                 except Exception as e: st.error(f"오류 발생: {e}")
 
