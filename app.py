@@ -114,9 +114,9 @@ def fit_image_to_merged_cell(ws, img_data, cell_addr):
     except Exception as e:
         st.error(f"❌ 이미지 삽입 실패 ({cell_addr}): {type(e).__name__}: {e}")
 
-# --- 4. 메인 UI 및 앱 로직 ---
-st.set_page_config(page_title="이미지 업로드 보고서 시스템 (Supabase)", layout="wide")
-st.title("이미지 업로드 보고서 시스템")
+# --- 4. 메인 UI 및 앱 ---
+st.set_page_config(page_title="EXEL UPLOAD (Supabase)", layout="wide")
+st.title("EXEL UPLOAD")
 
 if 'presets' not in st.session_state:
     st.session_state.presets = load_presets_from_supabase()
