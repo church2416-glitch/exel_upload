@@ -47,13 +47,11 @@ def save_presets_to_drive(presets):
         fh = io.BytesIO(content.encode('utf-8'))
         media = MediaIoBaseUpload(fh, mimetype='application/json')
         
+        # save_presets_to_drive 함수 내 query 부분 수정 제안
         query = f"name = 'presets.json' and '{FOLDER_ID}' in parents and trashed = false"
-        # 검색 시 옵션 추가
         results = service.files().list(
-            q=query, 
-            supportsAllDrives=True, 
-            includeItemsFromAllDrives=True,
-            fields="files(id, name)"
+            q=query,
+            fields="files(id, name)" # 불필요한 옵션을 제거하고 핵심 필드만 요청
         ).execute().get('files', [])
         
         if results:
