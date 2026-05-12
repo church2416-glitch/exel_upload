@@ -229,7 +229,8 @@ with main_col2:
                         if i >= len(final_cells): break
                         p_idx_str, cell_addr = final_cells[i].split(":")
                         ws = wb[wb.sheetnames[int(p_idx_str)-1]]
-                        fit_image_to_merged_cell(ws, img_file.read(), cell_addr)
+                        img_bytes = img_file.getvalue()  # 파일 객체에서 직접 데이터를 추출
+                        fit_image_to_merged_cell(ws, img_bytes, cell_addr)
                     
                     out = io.BytesIO()
                     wb.save(out)
