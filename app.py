@@ -2,12 +2,9 @@ import streamlit as st
 import openpyxl
 from openpyxl.drawing.image import Image
 from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
-import io, json, re
+import io, json, re, uuid, os
 from PIL import Image as PILImage
-from supabase import create_client, Client
-import re
-import uuid
-import os
+from supabase import create_client, Client 
 
 # --- Supabase 설정 ---
 @st.cache_resource
@@ -22,13 +19,12 @@ BUCKET_NAME = "templates" # Supabase Storage 버킷 이름
 # --- 2. Supabase 프리셋/양식 ---
 
 def load_presets_from_db():
+    """파일(JSON)이 아닌 DB 테이블에서 프리셋을 가져옵니다."""
     try:
-        # excel_presets 테이블의 모든 데이터 가져오기
-        response = supabase.table("excel_presets").select("*").execute()
-        
-        # UI { '프리셋명': {데이터} } 형태로 변환
+        # image_910598.png에서 확인된 테이블명 사용
+        res = supabase.table("excel_presets").select("*").execute()
         presets = {}
-        for row in response.data:
+        for row in res.data:
             presets[row['preset_name']] = {
                 "filename": row['filename'],
                 "cells": row['cell_positions'],
@@ -36,21 +32,16 @@ def load_presets_from_db():
             }
         return presets
     except Exception as e:
-        st.error(f"DB 불러오기 실패: {e}")
+        st.error(f"DB 데이터 로드 실패: {e}")
         return {}
 
-def save_preset_to_db(name, filename, cells, t_name):
+def delete_preset_from_db(preset_name):
+    """DB에서 특정 프리셋 삭제"""
     try:
-        data = {
-            "preset_name": name,
-            "filename": filename,
-            "cell_positions": cells,
-            "template_path": t_name
-        }
-        supabase.table("excel_presets").upsert(data, on_conflict="preset_name").execute()
+        supabase.table("excel_presets").delete().eq("preset_name", preset_name).execute()
         return True
     except Exception as e:
-        st.error(f"DB 저장 실패: {e}")
+        st.error(f"삭제 실패: {e}")
         return False
 
 def upload_template_to_supabase(file_name, file_data):
@@ -147,7 +138,7 @@ st.set_page_config(page_title="EXEL UPLOAD (by.Simroot)", layout="wide")
 st.title("EXEL UPLOAD")
 
 if 'presets' not in st.session_state:
-    st.session_state.presets = load_presets_from_supabase()
+    st.session_state.presets = load_presets_from_db()
 if 'temp_cells' not in st.session_state:
     st.session_state.temp_cells = ""
 
