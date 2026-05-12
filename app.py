@@ -17,6 +17,7 @@ def get_drive_service():
 
 # Secrets에서 폴더 ID 가져오기
 FOLDER_ID = st.secrets["google_drive"]["folder_id"]
+st.write(f"디버깅용 - 현재 폴더 ID: [{FOLDER_ID}]") # 이 줄을 추가해서 따옴표나 공백이 있는지 확인
 
 # --- 2. 구글 드라이브 프리셋/양식 처리 로직 ---
 def load_presets_from_drive():
