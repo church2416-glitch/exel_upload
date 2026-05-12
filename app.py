@@ -7,6 +7,7 @@ from PIL import Image as PILImage
 from supabase import create_client, Client
 import re
 import uuid
+import os
 
 # --- 1. Supabase 연결 설정 ---
 @st.cache_resource
