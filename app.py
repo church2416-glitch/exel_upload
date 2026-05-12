@@ -84,34 +84,25 @@ def upload_template_to_drive(file_name, file_data):
         fh = io.BytesIO(file_data)
         media = MediaIoBaseUpload(fh, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         
+        # 1. 일단 파일이 있는지 찾습니다.
         query = f"name = '{file_name}' and '{FOLDER_ID}' in parents and trashed = false"
-        results = service.files().list(
-            q=query, 
-            supportsAllDrives=True, 
-            includeItemsFromAllDrives=True,
-            fields="files(id, name)"
-        ).execute().get('files', [])
+        results = service.files().list(q=query).execute().get('files', [])
         
         if results:
-            service.files().update(
-                fileId=results[0]['id'], 
-                media_body=media,
-                supportsAllDrives=True
-            ).execute()
+            # 파일이 있으면 수정(Update) -> 이건 무조건 성공!
+            service.files().update(fileId=results[0]['id'], media_body=media).execute()
+            return True
         else:
-            file_metadata = {
-                'name': file_name, 
-                'parents': [FOLDER_ID]
-            }
-            service.files().create(
-                body=file_metadata, 
-                media_body=media,
-                supportsAllDrives=True,
-                fields='id'
-            ).execute()
-        return True
+            # 파일이 없으면 생성(Create) 시도
+            # 여기서 에러가 난다면, 구글 드라이브 폴더 설정에서 
+            # '편집자가 권한을 변경하고 항목을 공유할 수 있음'이 켜져 있는지 확인해야 합니다.
+            file_metadata = {'name': file_name, 'parents': [FOLDER_ID]}
+            service.files().create(body=file_metadata, media_body=media).execute()
+            return True
     except Exception as e:
-        st.error(f"양식 파일 업로드 실패: {e}")
+        # 만약 여기서 storageQuotaExceeded(용량부족) 에러가 뜨면 
+        # 서비스 계정의 근본적 한계라 처음 한 번은 파일을 던져줘야 합니다 ㅠ
+        st.error(f"양식 저장 실패: {e}")
         return False
 
 def download_template_from_drive(file_name):
