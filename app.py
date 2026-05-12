@@ -302,6 +302,38 @@ with main_col2:
                     )
                 except Exception as e:
                     st.error(f"오류 발생: {e}")
+# --- 관리자 전용 ---
+st.sidebar.markdown("---")
+admin_key = st.sidebar.checkbox("관리자 모드 활성화")
+
+if admin_key:
+    st.header("관리자 데이터베이스 제어판")
+    
+    # 1. DB에서 현재 저장된 모든 프리셋 데이터 직접 불러오기
+    try:
+        # Supabase 'presets' 테이블의 모든 행 가져오기
+        res = supabase.table("presets").select("*").execute()
+        db_data = res.data
+        
+        if db_data:
+            st.subheader("현재 저장된 프리셋 목록 (DB)")
+            # 표 형태로 출력
+            st.dataframe(db_data, use_container_width=True)
+            
+            # 2. 특정 데이터 삭제 기능
+            st.subheader("데이터 삭제")
+            target_id = st.selectbox("삭제할 데이터의 ID를 선택하세요", [r['id'] for r in db_data])
+            
+            if st.button("선택한 데이터 영구 삭제", type="secondary"):
+                supabase.table("presets").delete().eq("id", target_id).execute()
+                st.success(f"ID {target_id} 데이터가 삭제되었습니다.")
+                st.rerun()
+        else:
+            st.info("DB에 저장된 데이터가 없습니다.")
+            
+    except Exception as e:
+        st.error(f"관리자 모드 로드 실패: {e}")
+        st.info("💡 먼저 Supabase SQL Editor에서 테이블을 생성해야 합니다.")
 
 st.markdown("---")
 st.info("""💡 **Supabase 연동으로 서버가 꺼져도 내 프리셋과 양식 파일이 안전하게 보존됩니다."
