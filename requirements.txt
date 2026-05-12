@@ -1,5 +1,4 @@
 streamlit
+supabase
 openpyxl
 Pillow
-google-api-python-client
-google-auth
