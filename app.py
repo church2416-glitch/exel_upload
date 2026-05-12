@@ -5,6 +5,8 @@ from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
 import io, json, re, uuid, os
 from PIL import Image as PILImage
 from supabase import create_client, Client 
+import time
+from streamlit.web.server.websocket_headers import _get_query_params_from_headers
 
 # --- 1. Supabase 설정 ---
 @st.cache_resource
@@ -16,17 +18,33 @@ def get_supabase() -> Client:
 supabase = get_supabase()
 BUCKET_NAME = "templates"
 
-# --- 2. Supabase DB 연동 함수 ---
-def save_log_to_db(action, filename):
-    """이용 기록을 DB에 저장합니다."""
+# ---  Supabase DB 연동  ---
+def save_log_to_db(action, filename, p_time=0):
     try:
+        # 접속 환경 정보 가져오기
+        from streamlit import runtime
+        ctx = runtime.get_instance().get_client_ctx(runtime.scriptrunner.get_script_run_ctx().session_id)
+        
+        # 기본값 설정
+        ip = "Unknown"
+        user_agent = "Unknown"
+        
+        if ctx:
+            # 대리 서버(Proxy) 환경을 고려한 IP 및 에이전트 추출
+            headers = ctx.query_string  
+            user_agent = st.context.headers.get("User-Agent", "Unknown")
+            ip = st.context.headers.get("X-Forwarded-For", "Unknown")
+
         log_data = {
             "action_type": action,
-            "target_filename": filename
+            "target_filename": filename,
+            "processing_time": round(p_time, 2),
+            "user_agent": user_agent,
+            "user_ip": ip.split(',')[0] # 여러 IP가 찍힐 경우 첫 번째 것만
         }
         supabase.table("user_logs").insert(log_data).execute()
     except Exception as e:
-        print(f"Log Error: {e}")
+        print(f"로그 상세 저장 실패: {e}")
 
 def load_presets_from_db():
     """DB 테이블 'excel_presets'에서 프리셋 로드"""
@@ -209,7 +227,8 @@ with main_col2:
     st.subheader("사진 업로드")
     uploaded_imgs = st.file_uploader("작업 사진 선택", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
     
-    if st.button("보고서 생성", use_container_width=True, type="primary"):
+    if st.button("보고서 생성"):
+        start_time = time.time()
         final_excel_data = uploaded_excel.getvalue() if uploaded_excel else active_temp_data
         
         final_cells = []
@@ -242,8 +261,11 @@ with main_col2:
                     out = io.BytesIO()
                     wb.save(out)
                     out.seek(0)
+
+                    end_time = time.time() #종료시간
+                    duration = end_time - start_time
                     st.success("✅ 생성 완료!")
-                    save_log_to_db("보고서 생성", f"{custom_filename}.xlsx")
+                    save_log_to_db("보고서 생성", f"{custom_filename}.xlsx", p_time=duration)
                     st.download_button("결과 엑셀 다운로드", data=out, file_name=f"{custom_filename}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
                 except Exception as e: st.error(f"오류 발생: {e}")
 
