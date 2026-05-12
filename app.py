@@ -76,11 +76,13 @@ def download_template_from_supabase(file_name):
 # --- 3. 이미지 처리 로직 (기존과 동일) ---
 def fit_image_to_merged_cell(ws, img_data, cell_addr):
     try:
+        try:
+            from pillow_heif import register_heif_opener
+            register_heif_opener()
+        except ImportError:
+            pass
+
         input_img = PILImage.open(io.BytesIO(img_data))
-        if input_img.width > 1600:
-            ratio = 1600 / float(input_img.width)
-            hsize = int((float(input_img.height) * float(ratio)))
-            input_img = input_img.resize((1600, hsize), PILImage.Resampling.LANCZOS)
         
         img_byte_arr = io.BytesIO()
         input_img.convert("RGB").save(img_byte_arr, format='JPEG', quality=85)
@@ -232,9 +234,10 @@ with main_col2:
                         
                         img_file.seek(0)
                         
-                        img_bytes = img_file.getvalue()
+                        img_bytes = img_file.read()
                         
                         if not img_bytes:
+                            st.error(f"이미지 {i} 비어있음!")
                             continue
                             
                         p_idx_str, cell_addr = final_cells[i].split(":")
