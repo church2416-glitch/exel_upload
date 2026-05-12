@@ -105,13 +105,13 @@ def fit_image_to_merged_cell(ws, img_data, cell_addr):
             sc, sr = target_range.min_col - 1, target_range.min_row - 1
             ec, er = target_range.max_col, target_range.max_row
             img.anchor = TwoCellAnchor('twoCell', AnchorMarker(sc, 0, sr, 0), AnchorMarker(ec, 0, er, 0))
-            st.write(f"✅ 병합셀 찾음: {target_range}")  # 추가
+           # st.write(f"✅ 병합셀 찾음: {target_range}") 
         else:
             img.anchor = cell_addr.upper()
-            st.write(f"⚠️ 병합셀 못찾음, 단순앵커: {cell_addr}")  # 추가
+            #st.write(f"⚠️ 병합셀 못찾음, 단순앵커: {cell_addr}")  # 추가
         
         ws.add_image(img)
-        st.write(f"✅ 이미지 추가완료: {cell_addr}")  # 추가
+       # st.write(f"✅ 이미지 추가완료: {cell_addr}")  # 추가
         
     except Exception as e:
         st.error(f"❌ 이미지 삽입 실패 ({cell_addr}): {type(e).__name__}: {e}")
@@ -245,7 +245,7 @@ with main_col2:
                         if i >= len(final_cells):
                             break
     
-                        st.write(f"디버그 {i+1}번: {len(img_bytes)} bytes")  # 확인 후 나중에 삭제
+                        #st.write(f"디버그 {i+1}번: {len(img_bytes)} bytes")  # 확인 후 나중에 삭제
     
                         if not img_bytes:
                             st.warning(f"⚠️ {i+1}번째 이미지 비어있음")
