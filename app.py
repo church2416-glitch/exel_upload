@@ -192,7 +192,7 @@ if selected_preset != "직접 입력":
 
 d_name, d_cells, active_temp_data, active_temp_name = "", "", None, None
 
-if selected_preset != "직접 입력":
+if selected_preset != "직접 입력" and selected_preset in st.session_state.presets:
     p = st.session_state.presets[selected_preset]
     d_name = p.get("filename", "")
     d_cells = p.get("cells", "")
@@ -203,7 +203,9 @@ if selected_preset != "직접 입력":
         if active_temp_data:
             active_temp_name = t_name
             st.sidebar.success(f"✅ 양식 연결됨: {t_name}")
-
+else:
+    
+    d_name, d_cells, active_temp_data, active_temp_name = "", "", None, None
 # 메인 화면
 main_col1, main_col2 = st.columns([1, 1])
 
@@ -244,19 +246,31 @@ with main_col1:
     new_p_name = st.sidebar.text_input("신규 프리셋 이름")
     if st.sidebar.button("구글 드라이브에 저장", use_container_width=True):
         if new_p_name and custom_filename and cell_input:
-            target_t_name = active_temp_name
+            target_t_name = active_temp_name  # 기본적으로 기존 연결된 양식 이름 사용
+            
+            # 1. 새로운 엑셀 파일이 업로드된 경우 
             if uploaded_excel:
                 target_t_name = uploaded_excel.name
-                upload_template_to_drive(target_t_name, uploaded_excel.getvalue())
+                # 파일을 바이트 데이터로 변환
+                excel_data = uploaded_excel.getvalue()
+                
+                # 드라이브 업로드 함수 호출
+                if upload_template_to_drive(target_t_name, excel_data):
+                    st.sidebar.success(f"📦 양식 파일({target_t_name}) 업로드 성공!")
+                else:
+                    # 여기서 실패하면 아래 프리셋 저장으로 넘어가지 않도록 방어
+                    st.stop() 
             
-            # 프리셋 업데이트 및 구글 업로드
+            # 2. 프리셋(설정값) 정보 업데이트
             st.session_state.presets[new_p_name] = {
                 "filename": custom_filename,
                 "cells": cell_input,
                 "template_name": target_t_name
             }
+            
+            # 3. 프리셋 파일(json)을 드라이브에 최종 저장
             if save_presets_to_drive(st.session_state.presets):
-                st.sidebar.success(f"'{new_p_name}' 구글 저장 완료!")
+                st.sidebar.success(f"💾 '{new_p_name}' 설정 저장 완료!")
                 st.rerun()
 
 with main_col2:
