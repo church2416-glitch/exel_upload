@@ -17,6 +17,16 @@ supabase = get_supabase()
 BUCKET_NAME = "templates"
 
 # --- 2. Supabase DB 연동 함수 ---
+def save_log_to_db(action, filename):
+    """이용 기록을 DB에 저장합니다."""
+    try:
+        log_data = {
+            "action_type": action,
+            "target_filename": filename
+        }
+        supabase.table("user_logs").insert(log_data).execute()
+    except Exception as e:
+        print(f"Log Error: {e}")
 
 def load_presets_from_db():
     """DB 테이블 'excel_presets'에서 프리셋 로드"""
@@ -233,37 +243,71 @@ with main_col2:
                     wb.save(out)
                     out.seek(0)
                     st.success("✅ 생성 완료!")
+                    save_log_to_db("보고서 생성", f"{custom_filename}.xlsx")
                     st.download_button("결과 엑셀 다운로드", data=out, file_name=f"{custom_filename}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
                 except Exception as e: st.error(f"오류 발생: {e}")
 
-# --- 관리자 모드 섹션 ---
+
+# --- 관리자 전용  ---
 st.sidebar.markdown("---")
 admin_key = st.sidebar.checkbox("관리자 모드 접속")
 
 if admin_key:
     password = st.sidebar.text_input("Admin Password", type="password")
-    if password == "@tlavmf123":
-        st.header("관리자 데이터베이스 제어판")
-        try:
-            res = supabase.table("excel_presets").select("*").execute()
-            if res.data:
-                st.subheader("DB 데이터 현황")
-                st.dataframe(res.data, use_container_width=True)
-                
-                target_id = st.selectbox("삭제할 데이터 ID 선택", [r['id'] for r in res.data])
-                if st.button("DB에서 해당 행 삭제", type="secondary"):
-                    supabase.table("excel_presets").delete().eq("id", target_id).execute()
-                    st.success("삭제 성공!")
-                    st.rerun()
-            else:
-                st.info("DB에 저장된 데이터가 없습니다.")
-        except Exception as e:
-            st.error(f"관리자 로드 실패: {e}")
+    if password == "@tlavmf123": # 설정하신 비밀번호
+        st.header("AdministorDatabase")
+        
+        # 탭을 사용하여 프리셋 관리와 이용 기록 분리
+        tab_preset, tab_log = st.tabs(["프리셋 관리", "이용 기록 조회"])
+        
+        # --- Tab 1: 프리셋 관리 ---
+        with tab_preset:
+            try:
+                res = supabase.table("excel_presets").select("*").execute()
+                if res.data:
+                    st.subheader("DB 저장 프리셋 목록")
+                    st.dataframe(res.data, use_container_width=True)
+                    
+                    # 삭제 기능
+                    st.divider()
+                    col_del1, col_del2 = st.columns([3, 1])
+                    with col_del1:
+                        target_id = st.selectbox("삭제할 프리셋 ID 선택", [r['id'] for r in res.data], key="del_preset_sb")
+                    with col_del2:
+                        if st.button("행 삭제", type="secondary", use_container_width=True):
+                            supabase.table("excel_presets").delete().eq("id", target_id).execute()
+                            st.success("삭제 완료!")
+                            st.rerun()
+                else:
+                    st.info("저장된 프리셋이 없습니다.")
+            except Exception as e:
+                st.error(f"프리셋 로드 실패: {e}")
+
+        # --- Tab 2: 이용 기록 조회 ---
+        with tab_log:
+            try:
+                # user_logs 테이블에서 최신순으로 50개 조회
+                log_res = supabase.table("user_logs").select("*").order("created_at", descending=True).limit(50).execute()
+                if log_res.data:
+                    st.subheader("최근 보고서 생성 로그 (최신 50건)")
+                    st.table(log_res.data) # 로그는 수정보다는 읽기가 중요하므로 table 사용
+                    
+                    if st.button("로그 기록 전체 삭제 (주의)", type="primary"):
+                        # 모든 로그 삭제 (필요할 때만 사용)
+                        supabase.table("user_logs").delete().neq("id", 0).execute()
+                        st.success("로그 초기화 완료")
+                        st.rerun()
+                else:
+                    st.info("아직 생성된 이용 기록이 없습니다.")
+            except Exception as e:
+                st.error(f"로그 로드 실패: {e}")
+                st.info("💡 SQL Editor에서 user_logs 테이블을 생성했는지 확인하세요.")
+
     elif password:
         st.sidebar.warning("비밀번호가 틀렸습니다.")
 
 st.markdown("---")
-st.info("""💡 **Supabase 연동으로 데이터가 안전하게 보존됩니다.**"
+st.info("""💡 **Supabase 연동으로 데이터가 안전하게 보존됩니다.**
 - **자동증가:** `1:B2+16`으로 입력하면 B2, B18, B34 순으로 사진이 들어갑니다.
 - **프리셋:** 한 번 저장해두면 다음부터는 사진만 올리면 끝납니다.
 """)
