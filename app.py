@@ -320,12 +320,18 @@ if admin_key:
                 
                 if log_res.data:
                     import pandas as pd
+                    from datetime import timedelta 
                     df = pd.DataFrame(log_res.data)
                     
                     if 'created_at' in df.columns:
-                        df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                        # 1. 먼저 datetime 형식으로 변환 (UTC 기준)
+                        df['created_at'] = pd.to_datetime(df['created_at'])
+                        
+                        # 2. 한국 시간(UTC+9)으로 9시간
+                        df['created_at'] = df['created_at'] + timedelta(hours=9)
+                        df['created_at'] = df['created_at'].dt.strftime('%Y-%m-%d %H:%M:%S')
                     
-                    st.subheader("최근 상세 이용 기록 (최신 50건)")
+                    st.subheader("🕒 최근 상세 이용 기록 (KST 기준)")
                     st.dataframe(df, width="stretch")
                     
                     st.divider()
