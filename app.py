@@ -255,7 +255,7 @@ admin_key = st.sidebar.checkbox("관리자 모드 접속")
 if admin_key:
     password = st.sidebar.text_input("Admin Password", type="password")
     if password == "@tlavmf123": # 설정하신 비밀번호
-        st.header("AdministorDatabase")
+        st.header("Administor DB")
         
         # 탭을 사용하여 프리셋 관리와 이용 기록 분리
         tab_preset, tab_log = st.tabs(["프리셋 관리", "이용 기록 조회"])
@@ -283,14 +283,13 @@ if admin_key:
             except Exception as e:
                 st.error(f"프리셋 로드 실패: {e}")
 
-        # --- Tab 2: 이용 기록 조회 ---
+        # --- 이용 기록 조회 ---
         with tab_log:
             try:
-                # user_logs 테이블에서 최신순으로 50개 조회
-                log_res = supabase.table("user_logs").select("*").order("created_at", descending=True).limit(50).execute()
+                log_res = supabase.table("user_logs").select("*").order("created_at", desc=True).limit(50).execute()
                 if log_res.data:
                     st.subheader("최근 보고서 생성 로그 (최신 50건)")
-                    st.table(log_res.data) # 로그는 수정보다는 읽기가 중요하므로 table 사용
+                    st.table(log_res.data)
                     
                     if st.button("로그 기록 전체 삭제 (주의)", type="primary"):
                         # 모든 로그 삭제 (필요할 때만 사용)
