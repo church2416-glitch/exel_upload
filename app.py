@@ -333,7 +333,7 @@ if admin_key:
                         df['created_at'] = df['created_at'] + timedelta(hours=9)
                         df['created_at'] = df['created_at'].dt.strftime('%Y-%m-%d %H:%M:%S')
                     
-                    st.subheader("🕒 최근 상세 이용 기록 (KST 기준)")
+                    st.subheader("최근 상세 이용 기록")
                     st.dataframe(df, width="stretch")
                     
                     st.divider()
